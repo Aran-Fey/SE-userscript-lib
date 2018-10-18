@@ -3,7 +3,7 @@
     if (get_global('SElib') !== undefined)
         return;
     set_global('SElib', true);
-
+    
     function _build_event(self, callbacks, start_func, stop_func){
         function register(func){
             callbacks.push(func);
@@ -47,18 +47,28 @@
 
     
     const _users_by_id = new Map();
-
+    
+    /*
+     * Enum used to specify when registered callback functions should be
+     * re-executed
+     */
     set_global('Rerun', {
         NEVER: 1,
         AFTER_CHANGE: 2,
     });
     
+    /*
+     * Base class for SE Questions and Answers
+     */
     set_global('PostActionsMixin', Base => class PostActionsMixin extends Base {
         get _key(){
             return StackExchange.options.user.fkey;
         }
     });
-
+    
+    /*
+     * Base class for Questions
+     */
     set_global('QuestionActionsMixin', Base => class QuestionActionsMixin extends PostActionsMixin(Base) {
         load_tags(){
             const url = document.location.origin + '/posts/' + this.id + '/edit-tags';
@@ -94,16 +104,25 @@
             // form.submit();
         }
     });
-
+    
+    /*
+     * Base class for Answers
+     */
     set_global('AnswerActionsMixin', Base => class AnswerActionsMixin extends PostActionsMixin(Base) {
     });
-
+    
+    /*
+     * Base class for global page singletons
+     */
     set_global('PageBase', class PageBase extends ElementWrapper {
         constructor(){
             super(document);
         }
     });
-
+    
+    /*
+     * Represents a question list page (/questions/tagged/*)
+     */
     set_global('QuestionListPage', class QuestionListPage extends PageBase {
         constructor(){
             super();
@@ -119,7 +138,10 @@
             return questions;
         }
     });
-
+    
+    /*
+     * Represents a question summary on a question list page
+     */
     set_global('QuestionSummary', class QuestionSummary extends QuestionActionsMixin(IDElementWrapper) {
         constructor(element){
             super(element);
@@ -156,7 +178,10 @@
         }
     });
     QuestionSummary._instances_by_id = new Map();
-
+    
+    /*
+     * Represents a question page (/questions/<question-id>)
+     */
     set_global('QuestionPage', class QuestionPage extends PageBase {
         constructor(){
             super();
@@ -385,7 +410,10 @@
             //FIXME
         }
     });
-
+    
+    /*
+     * Abstract base class for Questions and Answers
+     */
     set_global('Post', class Post extends IDElementWrapper {
         constructor(element){
             super(element);
@@ -461,7 +489,10 @@
         }
     });
     Post._instances_by_id = new Map();
-
+    
+    /*
+     * Class representing the question on a question page
+     */
     set_global('Question', class Question extends QuestionActionsMixin(Post) {
         static _get_id(element){
             return element.dataset.questionid;
@@ -479,13 +510,19 @@
             return tags.map(e => e.textContent);
         }
     });
-
+    
+    /*
+     * Class representing an answer on a question page
+     */
     set_global('Answer', class Answer extends AnswerActionsMixin(Post) {
         static _get_id(element){
             return element.dataset.answerid;
         }
     });
-
+    
+    /*
+     * Class representing a comment on a post
+     */
     set_global('Comment', class Comment extends IDElementWrapper {
         constructor(element){
             super(element);
@@ -544,7 +581,10 @@
         }
     });
     Comment._instances_by_id = new Map();
-
+    
+    /*
+     * Class representing an SE user account
+     */
     set_global('User', class User {
         constructor(id, name){
             this.id = id;
@@ -576,14 +616,29 @@
             return user;
         }
     });
-
-    // === Post body elements start here ===
+    
+    /* ==========================
+     * === POST BODY ELEMENTS ===
+     * ==========================
+     * 
+     * Post body elements are objects representing the various formatting options
+     * in a post - things like code blocks, block quotes, bold text, italic text,
+     * links, etc.
+     */
+    
+    /*
+     * Base class for all post body elements
+     */
     set_global('PostBodyElement', class PostBodyElement extends BaseClass {
         extract_text(){
             return '';
         }
     });
-
+    
+    /*
+     * Abstract base class for all post body elements that contain other post
+     * body elements
+     */
     set_global('PostBodyContainer', class PostBodyContainer extends PostBodyElement {
         constructor(children){
             super();
@@ -674,7 +729,11 @@
             return chunks.join("");
         }
     });
-
+    
+    /*
+     * Class used for debugging / as a placeholder for elements that couldn't be
+     * parsed
+     */
     set_global('PostBodyERROR', class PostBodyERROR extends PostBodyElement {
         constructor(message){
             super();
@@ -685,25 +744,39 @@
             return '<<<ERROR:' + this.message + '>>>';
         }
     });
-
+    
+    /*
+     * An element that does nothing and is invisible. It can act as a separator
+     * of sorts.
+     */
     set_global('PostBodyDummyElement', class PostBodyDummyElement extends PostBodyElement {
         to_markup(){
             return '';
         }
     });
-
+    
+    /*
+     * An element that separates any two post body elements - basically it
+     * creates a new paragraph.
+     */
     set_global('PostBodyElementSeparator', class PostBodyElementSeparator extends PostBodyElement {
         to_markup(){
             return '\n\n';
         }
     });
-
+    
+    /*
+     * An invisible element that separates two code blocks
+     */
     set_global('PostBodyCodeBlockSeparator', class PostBodyCodeBlockSeparator extends PostBodyElement {
         to_markup(){
             return '\n<!-- -->\n';
         }
     });
     
+    /*
+     * A line break
+     */
     set_global('PostBodyLineBreak', class PostBodyLineBreak extends PostBodyElement {
         static from_element(element){
             if (element.tagName !== 'BR')
@@ -716,7 +789,10 @@
             return '<br>';
         }
     });
-
+    
+    /*
+     * The post body's root element - a container for child elements.
+     */
     set_global('PostBodyRoot', class PostBodyRoot extends PostBodyContainer {
         constructor(children, tags){
             super(children);
@@ -752,7 +828,10 @@
             return markup.replace(/(?:\n *){2,}(?=\n|$)/g, '\n');
         }
     });
-
+    
+    /*
+     * A link
+     */
     set_global('PostBodyUrl', class PostBodyUrl extends PostBodyContainer {
         constructor(url, children){
             super(children);
@@ -772,7 +851,10 @@
             return '[' + body + '](' + this.url + ')';
         }
     });
-
+    
+    /*
+     * A block of code
+     */
     set_global('PostBodyCodeBlock', class PostBodyCodeBlock extends PostBodyElement {
         constructor(code){
             super();
@@ -794,7 +876,10 @@
             return "\n\n    " + this.code.split("\n").join("\n    ") + "\n\n";
         }
     });
-
+    
+    /*
+     * A line of code
+     */
     set_global('PostBodyInlineCode', class PostBodyInlineCode extends PostBodyElement {
         constructor(code){
             super();
@@ -818,7 +903,10 @@
             return '`' + this.code + '`';
         }
     });
-
+    
+    /*
+     * An executable HTML/JS/CSS snippet
+     */
     set_global('PostBodyJSSnippet', class PostBodyJSSnippet extends PostBodyElement {
         constructor(code){
             super();
@@ -849,7 +937,10 @@
             return "\n\n<!-- begin snippet: js hide: false console: true babel: false -->\n\n<!-- language: lang-js -->" + this.code.split("\n").join("\n    ") + "\n\n<!-- end snippet -->\n\n";
         }
     });
-
+    
+    /*
+     * Plain text
+     */
     set_global('PostBodyText', class PostBodyText extends PostBodyElement {
         constructor(text){
             super();
@@ -877,7 +968,10 @@
             return markup;
         }
     });
-
+    
+    /*
+     * Bold text
+     */
     set_global('PostBodyBold', class PostBodyBold extends PostBodyContainer {
         constructor(children){
             super(children);
@@ -896,7 +990,10 @@
             return '**' + body + '**';
         }
     });
-
+    
+    /*
+     * Italic text
+     */
     set_global('PostBodyItalicized', class PostBodyItalicized extends PostBodyContainer {
         constructor(children){
             super(children);
@@ -915,7 +1012,10 @@
             return '*' + body + '*';
         }
     });
-
+    
+    /*
+     * A block quote
+     */
     set_global('PostBodyBlockQuote', class PostBodyBlockQuote extends PostBodyContainer {
         constructor(children){
             super(children);
@@ -935,6 +1035,9 @@
         }
     });
     
+    /*
+     * A heading
+     */
     set_global('PostBodyHeading', class PostBodyHeading extends PostBodyContainer {
         constructor(children, rank){
             super(children);
@@ -956,7 +1059,10 @@
             return '#'.repeat(this.rank) + ' ' + body + '\n\n';
         }
     });
-
+    
+    /*
+     * An image
+     */
     set_global('PostBodyImage', class PostBodyImage extends PostBodyElement {
         constructor(src, description){
             super();
@@ -975,7 +1081,10 @@
             return '!['+this.description+']('+this.src+')';
         }
     });
-
+    
+    /*
+     * A horizontal separator line
+     */
     set_global('PostBodySeparator', class PostBodySeparator extends PostBodyElement {
         static from_element(element){
             if (element.tagName !== 'HR')
@@ -988,7 +1097,10 @@
             return '\n\n----------\n\n';
         }
     });
-
+    
+    /*
+     * A numbered or bullet point list
+     */
     set_global('PostBodyList', class PostBodyList extends PostBodyContainer {
         constructor(children, enumerate){
             super(children);
@@ -1024,6 +1136,9 @@
             return chunks.join('\n') + '\n\n';
         }
     });
+    /*
+     * An element in a PostBodyList
+     */
     set_global('PostBodyListItem', class PostBodyListItem extends PostBodyContainer {
         static from_element(element){
             if (element.tagName !== 'LI')
