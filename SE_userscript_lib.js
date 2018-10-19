@@ -724,7 +724,9 @@
                     chunks.push('\n\n<!-- -->\n');
 
                 chunks.push(child.to_markup());
-                prev_child = child;
+                
+                if (!child.is_a(PostBodyElementSeparator))
+                    prev_child = child;
             }
             return chunks.join("");
         }
