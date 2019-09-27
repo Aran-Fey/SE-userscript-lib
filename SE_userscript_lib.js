@@ -126,6 +126,12 @@
     set_global('QuestionListPage', class QuestionListPage extends PageBase {
         constructor(){
             super();
+            
+            this._on_new_questions_loaded_callbacks = [];
+            this.on_new_questions_loaded = _build_event(this,
+                                                this._on_new_questions_loaded_callbacks,
+                                                this._on_new_questions_loaded_start,
+                                                this._on_new_questions_loaded_stop);
         }
 
         list_questions(){
@@ -136,6 +142,36 @@
             }
 
             return questions;
+        }
+        
+        _on_new_questions_loaded_start(){
+            this._on_new_questions_loaded_listener = this._check_new_questions_loaded.bind(this);
+            document.addEventListener('click', this._on_new_questions_loaded_listener, true);
+        }
+        _on_new_questions_loaded_stop(){
+            document.removeEventListener('click', this._on_new_questions_loaded_listener, true);
+            this._on_new_questions_loaded_listener = undefined;
+        }
+        _check_new_questions_loaded(event){
+            const button = event.which || event.button;
+            if (button != 1){
+                return;
+            }
+            
+            if (!event.target.matches('#questions .js-new-post-activity:first-child *')){
+                return;
+            }
+            
+            const self = this;
+            function trigger_callbacks(){
+                for (const callback of self._on_new_questions_loaded_callbacks){
+                    callback();
+                }
+            }
+            
+            const questionList = document.getElementById('questions');
+            const observer_config = {childList: true};
+            run_after_last_mutation(trigger_callbacks, 200, questionList, observer_config)
         }
     });
     
@@ -300,8 +336,9 @@
             const self = this;
 
             function trigger_callbacks(){
-                for (const callback of self._after_post_change_callbacks)
+                for (const callback of self._after_post_change_callbacks){
                     callback(post);
+                }
             }
             const config = {childList: true, subtree: true};
             run_after_last_mutation(trigger_callbacks, 500, post.element, config);
@@ -652,7 +689,8 @@
                             PostBodyJSSnippet, PostBodyUrl, PostBodyBold,
                             PostBodyItalicized, PostBodyBlockQuote, PostBodyImage,
                             PostBodyList, PostBodyHeading, PostBodySeparator,
-                            PostBodyLineBreak];
+                            PostBodyLineBreak, PostBodySuperscript,
+                            PostBodySubscript];
 
             var children;
             if (['P','EM','STRONG','CODE','A','H1','H2','H3','H4','H5','LI'].includes(element.tagName))
@@ -964,8 +1002,27 @@
         to_markup(){
             var markup = this.text;
             
+            function escape_format(markup, char, sep){
+                if (sep === undefined)
+                    sep = '';
+                else if ((typeof sep) !== 'string')
+                    sep = sep.source;
+                
+                var regex = `${sep}((?:${char.source}){1,3})(.*?)\\1${sep}`;
+                regex = new RegExp(regex, 'g');
+                
+                function repl(g0, g1, g2){
+                    var esc = '\\'+ g1.split('').join('\\');
+                    var text = escape_format(g2, char, sep);
+                    return esc + text + esc;
+                }
+                
+                return markup.replace(regex, repl);
+            }
+            
             // escape formatting characters
-            markup = markup.replace(/([*_])/g, '\\$1');
+            markup = escape_format(markup, /_/, /\b/);
+            markup = escape_format(markup, /\*/);
             
             return markup;
         }
@@ -989,7 +1046,7 @@
 
         to_markup(){
             const body = super.to_markup();
-            return '**' + body + '**';
+            return '__' + body + '__';
         }
     });
     
@@ -1148,6 +1205,50 @@
 
             const children = this.parse_child_elements(element);
             return new this(children);
+        }
+    });
+    
+    /*
+     * Superscript
+     */
+    set_global('PostBodySuperscript', class PostBodySuperscript extends PostBodyContainer {
+        constructor(children){
+            super(children);
+        }
+
+        static from_element(element){
+            if (element.tagName !== 'SUP')
+                return null;
+
+            const children = super.parse_child_elements(element);
+            return new this(children);
+        }
+
+        to_markup(){
+            const body = super.to_markup();
+            return '<sup>' + body + '</sup>';
+        }
+    });
+    
+    /*
+     * Subscript
+     */
+    set_global('PostBodySubscript', class PostBodySubscript extends PostBodyContainer {
+        constructor(children){
+            super(children);
+        }
+
+        static from_element(element){
+            if (element.tagName !== 'SUB')
+                return null;
+
+            const children = super.parse_child_elements(element);
+            return new this(children);
+        }
+
+        to_markup(){
+            const body = super.to_markup();
+            return '<sub>' + body + '</sub>';
         }
     });
 
