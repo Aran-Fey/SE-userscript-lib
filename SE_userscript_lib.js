@@ -1,14 +1,16 @@
 
 (function(){
-    if (get_global('SElib') !== undefined)
+    if (get_global('SElib') !== undefined){
         return;
+    }
     set_global('SElib', true);
     
     function _build_event(self, callbacks, start_func, stop_func){
         function register(func){
             callbacks.push(func);
-            if (callbacks.length === 1)
+            if (callbacks.length === 1){
                 start_func.call(self);
+            }
         }
         function unregister(func){
             let index = callbacks.indexOf(func);
@@ -26,8 +28,9 @@
 
         function register(func){
             function callback(){
-                if (filter(...arguments))
+                if (filter(...arguments)){
                     func(...arguments);
+                }
             }
 
             callbacks.set(func, callback);
@@ -204,8 +207,9 @@
                 const taglist = this.querySelector('.tags');
 
                 const tags = [];
-                for (const elem of taglist.getElementsByTagName('a'))
+                for (const elem of taglist.getElementsByTagName('a')){
                     tags.push(elem.textContent);
+                }
 
                 this._tags = tags;
             }
@@ -257,8 +261,9 @@
         }
 
         get question(){
-            if (this._question === null)
+            if (this._question === null){
                 this._question = Post.from_element(this.getElementById('question'));
+            }
             return this._question;
         }
 
@@ -282,11 +287,13 @@
         }
         _check_answer_added(event){ // FIXME: the current implementation doesn't detect self-written answers
             var elem = event.target;
-            if (elem.tagName === 'A')
+            if (elem.tagName === 'A'){
                 elem = elem.parentElement;
+            }
 
-            if (elem.id !== 'new-answer-activity')
+            if (elem.id !== 'new-answer-activity'){
                 return;
+            }
 
             const answers_elem = document.getElementById('answers');
             // fetch the current answers so we can later find new ones
@@ -295,11 +302,13 @@
 
             function find_new_answers(){
                 for (const answer of self.answers){
-                    if (current_answers.includes(answer))
+                    if (current_answers.includes(answer)){
                         continue;
+                    }
 
-                    for (const callback of self._on_answer_added_callbacks)
+                    for (const callback of self._on_answer_added_callbacks){
                         callback(answer);
+                    }
                 }
             }
 
@@ -321,15 +330,18 @@
             // This function does NOT detect that.
 
             var elem = event.target;
-            if (elem.tagName === 'A')
+            if (elem.tagName === 'A'){
                 elem = elem.parentElement;
+            }
 
             if (elem.tagName === 'INPUT'){
-                if (elem.value !== 'Save Edits')
+                if (elem.value !== 'Save Edits'){
                     return;
+                }
             } else {
-                if (!elem.classList.contains('new-post-activity'))
+                if (!elem.classList.contains('new-post-activity')){
                     return;
+                }
             }
 
             const post = Post.from_child_element(elem);
@@ -345,8 +357,9 @@
         }
 
         _on_comment_modification_start(){
-            if (this._on_comment_modification_listener !== undefined)
+            if (this._on_comment_modification_listener !== undefined){
                 return;
+            }
 
             this._on_comment_modification_listener = event => this._check_comment_modifications(event);
             document.addEventListener('click', this._on_comment_modification_listener, true);
@@ -354,8 +367,9 @@
         _on_comment_modification_stop(){
             // since this listener is shared by 2 different events, only disconnect
             // it if neither event has any callbacks
-            if (this._on_comment_added_callbacks.length + this._after_comment_change_callbacks.length > 0)
+            if (this._on_comment_added_callbacks.length + this._after_comment_change_callbacks.length > 0){
                 return;
+            }
 
             document.removeEventListener('click', this._on_comment_modification_listener, true);
             this._on_comment_modification_listener = undefined;
@@ -363,8 +377,9 @@
         _check_comment_modifications(event){ // FIXME: the current implementation doesn't detect self-written comments
             const elem = event.target;
             if (!elem.classList.contains('js-show-link')
-                    || ! elem.classList.contains('comments-link'))
+                    || ! elem.classList.contains('comments-link')){
                 return;
+            }
 
             const parent_elem = find_parent(elem, e => e.classList.contains('post-layout'));
             const comments_elem = parent_elem.querySelector('.comments');
@@ -378,24 +393,28 @@
             function on_dom_mutation(mutations, observer){
                 for (const mutation of mutations){
                     for (const node of mutation.addedNodes){
-                        if (node.nodeType !== Node.ELEMENT_NODE)
+                        if (node.nodeType !== Node.ELEMENT_NODE){
                             continue;
+                        }
 
                         // the last change that the observer registers for each
                         // comment is the comment-link being modified
-                        if (node.tagName !== 'A' || !node.classList.contains('comment-link'))
+                        if (node.tagName !== 'A' || !node.classList.contains('comment-link')){
                             continue;
+                        }
 
                         let comment = Comment.from_child_element(node);
                         if (post._comments.includes(comment)){
                             // an existing comment was reloaded
-                            for (const callback of self._after_comment_change_callbacks)
+                            for (const callback of self._after_comment_change_callbacks){
                                 callback(comment);
+                            }
                         } else { // a new comment was added
                             post._comments.push(comment); // FIXME: insert it at the right index
 
-                            for (const callback of self._on_comment_added_callbacks)
+                            for (const callback of self._on_comment_added_callbacks){
                                 callback(comment);
+                            }
                         }
                     }
                 }
@@ -410,16 +429,18 @@
             this.posts.forEach(transform_func);
             this.on_answer_added.register(transform_func);
 
-            if (rerun === Rerun.AFTER_CHANGE)
+            if (rerun === Rerun.AFTER_CHANGE){
                 this.after_post_change.register(transform_func);
+            }
         }
 
         transform_answers(transform_func, rerun){
             this.answers.forEach(transform_func);
             this.on_answer_added.register(transform_func);
 
-            if (rerun === Rerun.AFTER_CHANGE)
+            if (rerun === Rerun.AFTER_CHANGE){
                 this.after_answer_change.register(transform_func);
+            }
         }
 
         transform_question(transform_func, rerun){
@@ -427,20 +448,23 @@
 
             if (rerun === Rerun.AFTER_CHANGE){
                 function callback(post){
-                    if (post.is_a(Question))
+                    if (post.is_a(Question)){
                         transform_func(post);
+                    }
                 }
                 this.after_post_change.register(callback);
             }
         }
 
         transform_comments(transform_func, rerun){
-            for (const post of this.posts)
+            for (const post of this.posts){
                 post.comments.forEach(transform_func);
+            }
             this.on_comment_added.register(transform_func);
 
-            if (rerun === Rerun.AFTER_CHANGE)
+            if (rerun === Rerun.AFTER_CHANGE){
                 this.after_comment_change.register(transform_func);
+            }
         }
 
         transform_answer_text_before_submit(transform_func){
@@ -461,13 +485,15 @@
         }
 
         static from_element(element){
-            if (this !== Post)
+            if (this !== Post){
                 return super.from_element(element);
+            }
 
-            if (element.dataset.questionid === undefined)
+            if (element.dataset.questionid === undefined){
                 return Answer.from_element(element);
-            else
+            } else {
                 return Question.from_element(element);
+            }
         }
 
         static from_child_element(element){
@@ -512,8 +538,9 @@
 
         before_edit(func){
             this._before_edit_callbacks.push(func);
-            if (this._before_edit_callbacks.length > 1)
+            if (this._before_edit_callbacks.length > 1){
                 return;
+            }
 
             // if this is the first callback that's been connected, add the
             // relevant events
@@ -521,8 +548,9 @@
             before_click(edit_button, () => this._trigger_before_edit());
         }
         _trigger_before_edit(){
-            for (var func of this._before_edit_callbacks)
+            for (var func of this._before_edit_callbacks){
                 func(this);
+            }
         }
     });
     Post._instances_by_id = new Map();
@@ -582,8 +610,9 @@
             const score_elem = this.querySelector('.comment-score');
             
             const score_span = score_elem.querySelector('span');
-            if (score_span === null)
+            if (score_span === null){
                 return 0;
+            }
             
             return parseInt(score_span.textContent);
         }
@@ -609,9 +638,9 @@
             const elem = this.querySelector('.comment-copy');
             const last_child = elem.lastChild;
 
-            if (last_child.nodeType === Node.TEXT_NODE)
+            if (last_child.nodeType === Node.TEXT_NODE){
                 last_child.textContent += text;
-            else {
+            } else {
                 const text_node = document.createTextNode(text);
                 elem.appendChild(text_node);
             }
@@ -632,8 +661,9 @@
             id = id + "";
 
             var user = _users_by_id.get(id);
-            if (user !== undefined)
+            if (user !== undefined){
                 return user;
+            }
 
             user = new User(id);
             _users_by_id.set(id, user);
@@ -693,10 +723,11 @@
                             PostBodySubscript];
 
             var children;
-            if (['P','EM','STRONG','CODE','A','H1','H2','H3','H4','H5','LI'].includes(element.tagName))
+            if (['P','EM','STRONG','CODE','A','H1','H2','H3','H4','H5','LI'].includes(element.tagName)){
                 children = element.childNodes;
-            else
+            } else {
                 children = element.children;
+            }
 
             for (const elem of children){
                 if (elem.tagName === 'P'){
@@ -707,19 +738,22 @@
                 }
 
                 // ignore "question already has an answer here" headers
-                if (elem.tagName === 'DIV' && elem.classList.contains('question-status'))
+                if (elem.tagName === 'DIV' && elem.classList.contains('question-status')){
                     continue;
+                }
 
                 var parsed_element = null;
                 for (const cls of CLASSES){
                     parsed_element = cls.from_element(elem);
-                    if (parsed_element !== null)
+                    if (parsed_element !== null){
                         break;
+                    }
                 }
-                if (parsed_element === null)
+                if (parsed_element === null){
                     parsed_element = new PostBodyERROR('failed to parse element: '+elem.tagName);
-                else if (parsed_element.is_a(PostBodyDummyElement))
+                } else if (parsed_element.is_a(PostBodyDummyElement)){
                     continue;
+                }
 
                 elements.push(parsed_element);
             }
@@ -758,13 +792,15 @@
             const chunks = [];
             var prev_child = null;
             for (const child of this.children){
-                if (child.is_any(SEP_TYPES) && prev_child !== null && prev_child.is_any(SEP_TYPES))
+                if (child.is_any(SEP_TYPES) && prev_child !== null && prev_child.is_any(SEP_TYPES)){
                     chunks.push('\n\n<!-- -->\n');
+                }
 
                 chunks.push(child.to_markup());
                 
-                if (!child.is_a(PostBodyElementSeparator))
+                if (!child.is_a(PostBodyElementSeparator)){
                     prev_child = child;
+                }
             }
             return chunks.join("");
         }
@@ -819,8 +855,9 @@
      */
     set_global('PostBodyLineBreak', class PostBodyLineBreak extends PostBodyElement {
         static from_element(element){
-            if (element.tagName !== 'BR')
+            if (element.tagName !== 'BR'){
                 return null;
+            }
 
             return new this(element);
         }
@@ -841,24 +878,27 @@
 
         static from_element(element){
             var post_body = element.querySelector(".post-text");
-            if (post_body === null)
+            if (post_body === null){
                 post_body = element;
+            }
 
             const children = super.parse_child_elements(post_body);
 
             const tag_list = element.querySelector('.post-taglist');
             let tags;
-            if (tag_list === null)
+            if (tag_list === null){
                 tags = null;
-            else
+            } else {
                 tags = Array.from(tag_list.getElementsByClassName('post-tag')).map(e => e.textContent);
+            }
 
             return new this(children, tags);
         }
 
         static from_child_element(element){
-            while (!element.classList.contains('question') && !element.classList.contains('answer'))
+            while (!element.classList.contains('question') && !element.classList.contains('answer')){
                 element = element.parentElement;
+            }
 
             return this.from_element(element);
         }
@@ -879,8 +919,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'A')
+            if (element.tagName !== 'A'){
                 return null;
+            }
 
             const children = super.parse_child_elements(element);
             return new this(element.href, children);
@@ -902,8 +943,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== "PRE" /*|| !element.classList.contains("prettyprint")*/)
+            if (element.tagName !== "PRE" /*|| !element.classList.contains("prettyprint")*/){
                 return null;
+            }
 
             return new this(element.textContent.trimRight());
         }
@@ -927,8 +969,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'CODE')
+            if (element.tagName !== 'CODE'){
                 return null;
+            }
 
             return new this(element.textContent);
         }
@@ -938,8 +981,9 @@
         }
 
         to_markup(){
-            if (this.code.includes('`'))
+            if (this.code.includes('`')){
                 return '<code>' + this.code + '</code>';
+            }
             return '`' + this.code + '`';
         }
     });
@@ -956,14 +1000,16 @@
         static from_element(element){
             if (element.tagName === 'SUP'){
                 const a = element.querySelector('a.edit-snippet');
-                if (a !== null)
+                if (a !== null){
                     return new PostBodyDummyElement();
+                }
 
                 return null;
             }
 
-            if (element.tagName !== "DIV" || !element.classList.contains("snippet"))
+            if (element.tagName !== "DIV" || !element.classList.contains("snippet")){
                 return null;
+            }
 
             const code_element = element.querySelector('code');
             return new this(code_element.textContent.trimRight());
@@ -992,8 +1038,9 @@
         }
 
         static from_element(element){
-            if (element.nodeType !== Node.TEXT_NODE)
+            if (element.nodeType !== Node.TEXT_NODE){
                 return null;
+            }
 
             const text = element.textContent;
             return new this(text);
@@ -1003,10 +1050,11 @@
             var markup = this.text;
             
             function escape_format(markup, char, sep){
-                if (sep === undefined)
+                if (sep === undefined){
                     sep = '';
-                else if ((typeof sep) !== 'string')
+                } else if ((typeof sep) !== 'string'){
                     sep = sep.source;
+                }
                 
                 var regex = `${sep}((?:${char.source}){1,3})(.*?)\\1${sep}`;
                 regex = new RegExp(regex, 'g');
@@ -1037,8 +1085,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'STRONG')
+            if (element.tagName !== 'STRONG'){
                 return null;
+            }
 
             const children = super.parse_child_elements(element);
             return new this(children);
@@ -1059,8 +1108,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'EM')
+            if (element.tagName !== 'EM'){
                 return null;
+            }
 
             const children = super.parse_child_elements(element);
             return new this(children);
@@ -1081,8 +1131,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'BLOCKQUOTE')
+            if (element.tagName !== 'BLOCKQUOTE'){
                 return null;
+            }
 
             const children = super.parse_child_elements(element);
             return new this(children);
@@ -1105,8 +1156,9 @@
 
         static from_element(element){
             const match = /^H(\d)$/.exec(element.tagName);
-            if (match === null)
+            if (match === null){
                 return null;
+            }
 
             const children = super.parse_child_elements(element);
             const rank = parseInt(match[1]);
@@ -1130,8 +1182,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'IMG')
+            if (element.tagName !== 'IMG'){
                 return null;
+            }
 
             return new this(element.src, element.alt);
         }
@@ -1146,8 +1199,9 @@
      */
     set_global('PostBodySeparator', class PostBodySeparator extends PostBodyElement {
         static from_element(element){
-            if (element.tagName !== 'HR')
+            if (element.tagName !== 'HR'){
                 return null;
+            }
 
             return new this();
         }
@@ -1167,14 +1221,16 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'OL' && element.tagName !== 'UL')
+            if (element.tagName !== 'OL' && element.tagName !== 'UL'){
                 return null;
+            }
 
             const enumerate = element.tagName == 'OL';
             const children = [];
             for (const child of element.childNodes){
-                if (child.tagName !== 'LI')
+                if (child.tagName !== 'LI'){
                     continue;
+                }
 
                 children.push(PostBodyListItem.from_element(child));
             }
@@ -1200,8 +1256,9 @@
      */
     set_global('PostBodyListItem', class PostBodyListItem extends PostBodyContainer {
         static from_element(element){
-            if (element.tagName !== 'LI')
+            if (element.tagName !== 'LI'){
                 return null;
+            }
 
             const children = this.parse_child_elements(element);
             return new this(children);
@@ -1217,8 +1274,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'SUP')
+            if (element.tagName !== 'SUP'){
                 return null;
+            }
 
             const children = super.parse_child_elements(element);
             return new this(children);
@@ -1239,8 +1297,9 @@
         }
 
         static from_element(element){
-            if (element.tagName !== 'SUB')
+            if (element.tagName !== 'SUB'){
                 return null;
+            }
 
             const children = super.parse_child_elements(element);
             return new this(children);
@@ -1254,13 +1313,14 @@
 
     // depending on the url, instantiate the correct Page class
     const url = window.location.href;
-    if (url.includes('/questions/')){
-        if (url.includes('/tagged/'))
+    if (window.location.pathname == '/'){
+        set_global('page', new QuestionListPage());
+    } else if (url.includes('/questions/')){
+        if (url.includes('/tagged/')){
             set_global('page', new QuestionListPage());
-        else if (!url.includes('/originals/')){
+        } else if (!url.includes('/originals/')){
             set_global('page', new QuestionPage());
             set_global('question', page.question);
         }
     }
 })();
-
