@@ -15,8 +15,9 @@
         function unregister(func){
             let index = callbacks.indexOf(func);
             callbacks.splice(index, 1);
-            if (callbacks.length === 0)
+            if (callbacks.length === 0){
                 stop_func.call(self);
+            }
         }
 
         return {register: register,
@@ -475,7 +476,7 @@
     /*
      * Abstract base class for Questions and Answers
      */
-    set_global('Post', class Post extends IDElementWrapper {
+    class Post extends IDElementWrapper {
         constructor(element){
             super(element);
 
@@ -485,6 +486,8 @@
         }
 
         static from_element(element){
+          	// Note: In GreaseMonkey, this check only works because
+            // Post was defined as a local variable in this function
             if (this !== Post){
                 return super.from_element(element);
             }
@@ -517,7 +520,7 @@
         }
 
         get menu_element(){
-            return this.querySelector('.post-menu');
+            return this.querySelector('.post-menu-container');
         }
 
         get comments(){
@@ -552,7 +555,8 @@
                 func(this);
             }
         }
-    });
+    }
+    set_global('Post', Post);
     Post._instances_by_id = new Map();
     
     /*
