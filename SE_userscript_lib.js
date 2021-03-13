@@ -535,7 +535,7 @@
         }
 
         extract_text(){
-            const body = this.querySelector('.post-text');
+            const body = this.querySelector('.js-post-body');
             return body.textContent.trim();
         }
 
