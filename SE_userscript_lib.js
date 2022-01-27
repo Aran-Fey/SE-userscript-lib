@@ -4,7 +4,7 @@
         return;
     }
     set_global('SElib', true);
-    
+
     function _build_event(self, callbacks, start_func, stop_func){
         function register(func){
             callbacks.push(func);
@@ -49,9 +49,9 @@
                 unregister: unregister};
     }
 
-    
+
     const _users_by_id = new Map();
-    
+
     /*
      * Enum used to specify when registered callback functions should be
      * re-executed
@@ -60,7 +60,7 @@
         NEVER: 1,
         AFTER_CHANGE: 2,
     });
-    
+
     /*
      * Base class for SE Questions and Answers
      */
@@ -69,7 +69,7 @@
             return StackExchange.options.user.fkey;
         }
     });
-    
+
     /*
      * Base class for Questions
      */
@@ -96,7 +96,7 @@
             form.set('tagnames', tags.join('+'));
 
             return async_xhr_post(url, form);
-            
+
             // const form = document.createElement('form');
             // form.action = '/posts/'+this.id+'/edit-tags';
             // form.method = 'post';
@@ -108,13 +108,13 @@
             // form.submit();
         }
     });
-    
+
     /*
      * Base class for Answers
      */
     set_global('AnswerActionsMixin', Base => class AnswerActionsMixin extends PostActionsMixin(Base) {
     });
-    
+
     /*
      * Base class for global page singletons
      */
@@ -123,31 +123,105 @@
             super(document);
         }
     });
-    
+
+    /*
+     * Represents a question summary on a question list page
+     */
+    set_global('QuestionSummary', class QuestionSummary extends QuestionActionsMixin(IDElementWrapper) {
+        constructor(element){
+            super(element);
+
+            this._author = null;
+            this._tags = null;
+            this._score = null;
+        }
+
+        static _get_id(element){
+            return element.id.split('-')[2];
+        }
+
+        get author(){
+            if (this._author === null){
+                this._author = this._get_author();
+            }
+
+            return this._author;
+        }
+
+        _get_author(){
+            const elem = this.querySelector('.user-info');
+            return User.from_element(elem);
+        }
+
+        get tags(){
+            if (this._tags === null){
+                this._tags = Array.from(this.querySelectorAll('.post-tag')).map(elem => elem.textContent);
+            }
+
+            return this._tags;
+        }
+
+        get score(){
+            if (this._score === null){
+                this._score = this._get_score();
+            }
+
+            return this._score;
+        }
+
+        _get_score(){
+            const elem = this.querySelector('.vote-count-post');
+            return parseInt(elem.textContent);
+        }
+    });
+    QuestionSummary._instances_by_id = new Map();
+
+    /*
+     * Represents a question summary on the home page
+     */
+    set_global('HomePageQuestionSummary', class HomePageQuestionSummary extends QuestionSummary {
+        _get_author(){
+            const elem = this.querySelector('.s-user-card');
+            return User.from_element(elem);
+        }
+
+        _get_score(){
+            const elem = this.querySelector('.s-post-summary--stats-item');
+            return parseInt(elem.textContent);
+        }
+    });
+
+
     /*
      * Represents a question list page (/questions/tagged/*)
      */
     set_global('QuestionListPage', class QuestionListPage extends PageBase {
+        static _QUESTION_SUMMARY_TYPE = QuestionSummary;
+        static _QUESTION_SELECTOR = '.question-summary';
+        static _QUESTION_CONTAINER_SELECTOR = '#questions';
+
         constructor(){
             super();
-            
+
             this._on_new_questions_loaded_callbacks = [];
-            this.on_new_questions_loaded = _build_event(this,
-                                                this._on_new_questions_loaded_callbacks,
-                                                this._on_new_questions_loaded_start,
-                                                this._on_new_questions_loaded_stop);
+            this.on_new_questions_loaded = _build_event(
+                this,
+                this._on_new_questions_loaded_callbacks,
+                this._on_new_questions_loaded_start,
+                this._on_new_questions_loaded_stop
+            );
         }
 
         list_questions(){
             const questions = [];
-            for (const elem of self.getElementsByClassName('question-summary')){
-                const question = QuestionSummary.from_element(elem);
+            for (const elem of this.querySelectorAll(this.constructor._QUESTION_SELECTOR)){
+                const question = this.constructor._QUESTION_SUMMARY_TYPE.from_element(elem);
                 questions.push(question);
             }
 
             return questions;
         }
-        
+
         _on_new_questions_loaded_start(){
             this._on_new_questions_loaded_listener = this._check_new_questions_loaded.bind(this);
             document.addEventListener('click', this._on_new_questions_loaded_listener, true);
@@ -161,65 +235,33 @@
             if (button != 1){
                 return;
             }
-            
+
             if (!event.target.matches('#questions .js-new-post-activity:first-child *')){
                 return;
             }
-            
+
             const self = this;
             function trigger_callbacks(){
                 for (const callback of self._on_new_questions_loaded_callbacks){
                     callback();
                 }
             }
-            
-            const questionList = document.getElementById('questions');
+
+            const questionList = document.querySelector(this.constructor._QUESTION_CONTAINER_SELECTOR);
             const observer_config = {childList: true};
             run_after_last_mutation(trigger_callbacks, 200, questionList, observer_config)
         }
     });
-    
+
     /*
-     * Represents a question summary on a question list page
+     * Represents the home page (Like stackoverflow.com)
      */
-    set_global('QuestionSummary', class QuestionSummary extends QuestionActionsMixin(IDElementWrapper) {
-        constructor(element){
-            super(element);
-
-            this._author = null;
-            this._tags = null;
-        }
-
-        static _get_id(element){
-            return element.id.split('-')[2];
-        }
-
-        get author(){
-            if (this._author === null){
-                const elem = this.querySelector('.user-info');
-                this._author = User.from_element(elem);
-            }
-
-            return this._author;
-        }
-
-        get tags(){
-            if (this._tags === null){
-                const taglist = this.querySelector('.tags');
-
-                const tags = [];
-                for (const elem of taglist.getElementsByTagName('a')){
-                    tags.push(elem.textContent);
-                }
-
-                this._tags = tags;
-            }
-
-            return this._tags;
-        }
+    set_global('HomePage', class HomePage extends QuestionListPage {
+        static _QUESTION_SUMMARY_TYPE = HomePageQuestionSummary;
+        static _QUESTION_SELECTOR = '.s-post-summary';
+        static _QUESTION_CONTAINER_SELECTOR = '#question-mini-list';
     });
-    QuestionSummary._instances_by_id = new Map();
-    
+
     /*
      * Represents a question page (/questions/<question-id>)
      */
@@ -472,7 +514,7 @@
             //FIXME
         }
     });
-    
+
     /*
      * Abstract base class for Questions and Answers
      */
@@ -558,7 +600,7 @@
     }
     set_global('Post', Post);
     Post._instances_by_id = new Map();
-    
+
     /*
      * Class representing the question on a question page
      */
@@ -566,7 +608,7 @@
         static _get_id(element){
             return element.dataset.questionid;
         }
-        
+
         get title(){
             const header = document.getElementById('question-header');
             const title = header.firstElementChild.textContent;
@@ -579,7 +621,7 @@
             return tags.map(e => e.textContent);
         }
     });
-    
+
     /*
      * Class representing an answer on a question page
      */
@@ -588,7 +630,7 @@
             return element.dataset.answerid;
         }
     });
-    
+
     /*
      * Class representing a comment on a post
      */
@@ -609,15 +651,15 @@
         static _get_id(element){
             return element.dataset.commentId;
         }
-        
+
         get score(){
             const score_elem = this.querySelector('.comment-score');
-            
+
             const score_span = score_elem.querySelector('span');
             if (score_span === null){
                 return 0;
             }
-            
+
             return parseInt(score_span.textContent);
         }
 
@@ -651,14 +693,15 @@
         }
     });
     Comment._instances_by_id = new Map();
-    
+
     /*
      * Class representing an SE user account
      */
     set_global('User', class User {
-        constructor(id, name){
+        constructor(id, name, reputation){
             this.id = id;
             this.name = name;
+            this.repuation = reputation;
         }
 
         static from_id(id){
@@ -682,21 +725,38 @@
         }
 
         static from_element(element){
-            const a = element.querySelector('.user-details a');
-            const user = this.from_link(a);
+            let details = element.querySelector('.user-details');
+            let user;
+
+            if (details !== null){
+                const a = details.querySelector('a');
+
+                user = this.from_link(a);
+                user.name = a.textContent;
+                user.reputation = parseInt(details.querySelector('.reputation-score').textContent);
+            } else {
+                details = element.querySelector('.s-user-card--info');
+
+                const a = details.querySelector('a');
+
+                user = this.from_link(a);
+                user.name = a.textContent;
+                user.reputation = parseInt(details.querySelector('.s-user-card--rep').textContent);
+            }
+
             return user;
         }
     });
-    
+
     /* ==========================
      * === POST BODY ELEMENTS ===
      * ==========================
-     * 
+     *
      * Post body elements are objects representing the various formatting options
      * in a post - things like code blocks, block quotes, bold text, italic text,
      * links, etc.
      */
-    
+
     /*
      * Base class for all post body elements
      */
@@ -705,7 +765,7 @@
             return '';
         }
     });
-    
+
     /*
      * Abstract base class for all post body elements that contain other post
      * body elements
@@ -801,7 +861,7 @@
                 }
 
                 chunks.push(child.to_markup());
-                
+
                 if (!child.is_a(PostBodyElementSeparator)){
                     prev_child = child;
                 }
@@ -809,7 +869,7 @@
             return chunks.join("");
         }
     });
-    
+
     /*
      * Class used for debugging / as a placeholder for elements that couldn't be
      * parsed
@@ -824,7 +884,7 @@
             return '<<<ERROR:' + this.message + '>>>';
         }
     });
-    
+
     /*
      * An element that does nothing and is invisible. It can act as a separator
      * of sorts.
@@ -834,7 +894,7 @@
             return '';
         }
     });
-    
+
     /*
      * An element that separates any two post body elements - basically it
      * creates a new paragraph.
@@ -844,7 +904,7 @@
             return '\n\n';
         }
     });
-    
+
     /*
      * An invisible element that separates two code blocks
      */
@@ -853,7 +913,7 @@
             return '\n<!-- -->\n';
         }
     });
-    
+
     /*
      * A line break
      */
@@ -865,12 +925,12 @@
 
             return new this(element);
         }
-        
+
         to_markup(){
             return '<br>';
         }
     });
-    
+
     /*
      * The post body's root element - a container for child elements.
      */
@@ -912,7 +972,7 @@
             return markup.replace(/(?:\n *){2,}(?=\n|$)/g, '\n');
         }
     });
-    
+
     /*
      * A link
      */
@@ -936,7 +996,7 @@
             return '[' + body + '](' + this.url + ')';
         }
     });
-    
+
     /*
      * A block of code
      */
@@ -962,7 +1022,7 @@
             return "\n\n    " + this.code.split("\n").join("\n    ") + "\n\n";
         }
     });
-    
+
     /*
      * A line of code
      */
@@ -991,7 +1051,7 @@
             return '`' + this.code + '`';
         }
     });
-    
+
     /*
      * An executable HTML/JS/CSS snippet
      */
@@ -1027,7 +1087,7 @@
             return "\n\n<!-- begin snippet: js hide: false console: true babel: false -->\n\n<!-- language: lang-js -->" + this.code.split("\n").join("\n    ") + "\n\n<!-- end snippet -->\n\n";
         }
     });
-    
+
     /*
      * Plain text
      */
@@ -1052,34 +1112,34 @@
 
         to_markup(){
             var markup = this.text;
-            
+
             function escape_format(markup, char, sep){
                 if (sep === undefined){
                     sep = '';
                 } else if ((typeof sep) !== 'string'){
                     sep = sep.source;
                 }
-                
+
                 var regex = `${sep}((?:${char.source}){1,3})(.*?)\\1${sep}`;
                 regex = new RegExp(regex, 'g');
-                
+
                 function repl(g0, g1, g2){
                     var esc = '\\'+ g1.split('').join('\\');
                     var text = escape_format(g2, char, sep);
                     return esc + text + esc;
                 }
-                
+
                 return markup.replace(regex, repl);
             }
-            
+
             // escape formatting characters
             markup = escape_format(markup, /_/, /\b/);
             markup = escape_format(markup, /\*/);
-            
+
             return markup;
         }
     });
-    
+
     /*
      * Bold text
      */
@@ -1102,7 +1162,7 @@
             return '__' + body + '__';
         }
     });
-    
+
     /*
      * Italic text
      */
@@ -1125,7 +1185,7 @@
             return '*' + body + '*';
         }
     });
-    
+
     /*
      * A block quote
      */
@@ -1148,7 +1208,7 @@
             return '\n\n> ' + body.split('\n').join('\n> ') + '\n\n';
         }
     });
-    
+
     /*
      * A heading
      */
@@ -1174,7 +1234,7 @@
             return '#'.repeat(this.rank) + ' ' + body + '\n\n';
         }
     });
-    
+
     /*
      * An image
      */
@@ -1197,7 +1257,7 @@
             return '!['+this.description+']('+this.src+')';
         }
     });
-    
+
     /*
      * A horizontal separator line
      */
@@ -1214,7 +1274,7 @@
             return '\n\n----------\n\n';
         }
     });
-    
+
     /*
      * A numbered or bullet point list
      */
@@ -1268,7 +1328,7 @@
             return new this(children);
         }
     });
-    
+
     /*
      * Superscript
      */
@@ -1291,7 +1351,7 @@
             return '<sup>' + body + '</sup>';
         }
     });
-    
+
     /*
      * Subscript
      */
@@ -1318,7 +1378,7 @@
     // depending on the url, instantiate the correct Page class
     const url = window.location.href;
     if (window.location.pathname == '/'){
-        set_global('page', new QuestionListPage());
+        set_global('page', new HomePage());
     } else if (url.includes('/questions/')){
         if (url.includes('/tagged/')){
             set_global('page', new QuestionListPage());
